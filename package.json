@@ -1,0 +1,30 @@
+{
+  "name": "spendy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "parcel src/index.html"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@azure/storage-blob": "^12.11.0",
+    "@types/react": "^18.0.18",
+    "@types/react-dom": "^18.0.6",
+    "@types/react-vis": "^1.11.11",
+    "@types/underscore": "^1.11.4",
+    "parcel": "^2.7.0",
+    "prettier": "^2.7.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-vis": "^1.11.7",
+    "typescript": "^4.8.2",
+    "underscore": "^1.13.4"
+  },
+  "devDependencies": {
+    "@parcel/transformer-sass": "2.7.0",
+    "buffer": "^6.0.3",
+    "process": "^0.11.10"
+  }
+}
