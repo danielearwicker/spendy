@@ -62,8 +62,10 @@ body,
                     display: inline-block;
                     padding: 0.5em;
                     margin: 0.5em;
+                }
 
-                    &.selected {
+                a.active {
+                    .tab {
                         border-bottom: 2px solid silver;
                     }
                 }

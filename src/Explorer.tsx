@@ -1,12 +1,8 @@
-import { useMemo, useState } from "react";
-import {
-    normalizeCategory,
-    SpendyAction,
-    SpendyState,
-    useSpendyStorage,
-} from "./reducer";
+import React, { useMemo, useState } from "react";
+import { normalizeCategory, SpendyAction, SpendyState } from "./reducer";
 import {
     dateAdd,
+    dateDiff,
     formatBankAmount,
     getPattern,
     getPaymentsWithCategories,
@@ -14,13 +10,14 @@ import {
     quarterFromDate,
     sort,
 } from "./statements";
-import { Storage } from "./Storage";
 import { StackedBar } from "./StackedBar";
 import { RenameCategory } from "./RenameCategory";
 import { CategoryPath, getPathElements } from "./CategoryPath";
 import { ChildCategories, getChildCategory } from "./ChildCategories";
 import { getCategoryColour } from "./colours";
 import { Select } from "./inputComponents/Select";
+import { YearMonth } from "./YearMonth";
+import { useSearchParams } from "react-router-dom";
 
 interface PaymentLineProps {
     payment: Payment & {
@@ -54,6 +51,7 @@ export const dateRanges = [
     "last 30 days",
     "last 12 months",
     "all time",
+    "custom",
 ] as const;
 
 export type DateRange = typeof dateRanges[number];
@@ -64,11 +62,46 @@ export interface ExplorerProps {
 }
 
 export function Explorer({ state, dispatch }: ExplorerProps) {
-    const [path, setPath] = useState("");
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    function updateSearchParams(updates: Record<string, string>) {
+        setSearchParams({
+            ...Object.fromEntries(searchParams.entries()),
+            ...updates,
+        });
+    }
+
     const [search, setSearch] = useState("");
 
-    const [type, setType] = useState<PaymentType>("debits");
-    const [dateRange, setDateRange] = useState<DateRange>("last 30 days");
+    const path = searchParams.get("path") ?? "";
+
+    function setPath(path: string) {
+        updateSearchParams({ path });
+    }
+
+    const type = (searchParams.get("type") as PaymentType) ?? "debits";
+
+    function setType(type: PaymentType) {
+        updateSearchParams({ type });
+    }
+
+    const dateRange =
+        (searchParams.get("dateRange") as DateRange) ?? "last 30 days";
+
+    function setDateRange(dateRange: DateRange) {
+        updateSearchParams({ dateRange });
+    }
+
+    const dateRangeCustomStart = searchParams.get("dateRangeCustomStart") ?? "";
+    const dateRangeCustomEnd = searchParams.get("dateRangeCustomEnd") ?? "";
+
+    function setDateRangeCustomStart(dateRangeCustomStart: string) {
+        updateSearchParams({ dateRangeCustomStart });
+    }
+
+    function setDateRangeCustomEnd(dateRangeCustomEnd: string) {
+        updateSearchParams({ dateRangeCustomEnd });
+    }
 
     const [tableFilter, setTableFilter] = useState<
         undefined | { bar: string; segment?: string }
@@ -85,19 +118,41 @@ export function Explorer({ state, dispatch }: ExplorerProps) {
         [state.payments]
     );
 
+    const earliestDate = useMemo(
+        () =>
+            state.payments
+                .map(x => x.date)
+                .reduce(
+                    (l, r) => (l.localeCompare(r) < 0 ? l : r),
+                    "2100-01-01"
+                ),
+        [state.payments]
+    );
+
     const startDate =
         dateRange === "last 12 months"
             ? dateAdd(latestDate, "months", -12)
             : dateRange === "last 30 days"
             ? dateAdd(latestDate, "days", -30)
-            : "2000-01-01";
+            : dateRange === "custom" && dateRangeCustomStart
+            ? `${dateRangeCustomStart}-01`
+            : earliestDate;
+
+    const endDate =
+        dateRange === "custom" && dateRangeCustomEnd
+            ? `${dateRangeCustomEnd}-31`
+            : latestDate;
+
+    const rangeInDays = dateDiff(startDate, endDate);
 
     const getDateBar =
-        dateRange === "last 12 months"
-            ? (d: string) => d.substring(0, 7)
-            : dateRange === "last 30 days"
+        rangeInDays < 65
             ? (d: string) => d
-            : quarterFromDate;
+            : rangeInDays < 500
+            ? (d: string) => d.substring(0, 7)
+            : rangeInDays < 2000
+            ? quarterFromDate
+            : (d: string) => d.substring(0, 4);
 
     const paymentsWithCategories = useMemo(
         () =>
@@ -111,11 +166,15 @@ export function Explorer({ state, dispatch }: ExplorerProps) {
     const showCredits = type === "credits";
     const searchLower = search.toLocaleLowerCase();
 
+    const earliestYearMonth = earliestDate.substring(0, 7);
+    const latestYearMonth = latestDate.substring(0, 7);
+
     const filtered = useMemo(
         () =>
             paymentsWithCategories.filter(
                 x =>
                     x.date.localeCompare(startDate) >= 0 &&
+                    x.date.localeCompare(endDate) <= 0 &&
                     (type === "net per" ||
                         type === "net running" ||
                         x.amount > 0 === showCredits) &&
@@ -126,6 +185,7 @@ export function Explorer({ state, dispatch }: ExplorerProps) {
         [
             paymentsWithCategories,
             startDate,
+            endDate,
             type,
             showCredits,
             path,
@@ -242,6 +302,26 @@ export function Explorer({ state, dispatch }: ExplorerProps) {
                     options={dateRanges}
                     onChange={setDateRange}
                 />
+                {dateRange === "custom" && (
+                    <>
+                        <span> from </span>
+                        <YearMonth
+                            min={earliestYearMonth}
+                            max={latestYearMonth}
+                            value={dateRangeCustomStart || earliestYearMonth}
+                            monthWhenSettingYear={1}
+                            setValue={setDateRangeCustomStart}
+                        />
+                        <span> to </span>
+                        <YearMonth
+                            min={earliestYearMonth}
+                            max={latestYearMonth}
+                            value={dateRangeCustomEnd || latestYearMonth}
+                            monthWhenSettingYear={12}
+                            setValue={setDateRangeCustomEnd}
+                        />
+                    </>
+                )}
             </div>
 
             <div className="panel-container">
