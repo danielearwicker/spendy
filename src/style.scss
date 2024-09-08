@@ -19,31 +19,6 @@ body,
         padding: 0;
     }
 
-    .storage-options-bar {
-        flex: 0 0 auto;
-        font-size: 0.8em;
-        padding: 0.5em;
-        background-color: black;
-        color: white;
-        text-align: right;
-
-        .storage-options-link {
-            text-decoration: underline;
-            cursor: pointer;
-        }
-    }
-
-    .storage-options {
-        padding: 1em;
-
-        input {
-            width: 80%;
-            border: 1px solid silver;
-            padding: 0.5em;
-            border-radius: 5px;
-        }
-    }
-
     .app-content {
         flex: 1 1 auto;
         overflow: hidden;

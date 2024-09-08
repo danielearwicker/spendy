@@ -1,17 +1,9 @@
 import { useEffect, useReducer, useRef, useState } from "react";
-
-export interface StateStoragePayload {
-    data: object | undefined;
-    version: string;
-}
-
-export interface StateStorage {
-    save(payload: StateStoragePayload): Promise<string>;
-    load(): Promise<StateStoragePayload>;
-}
+import { StorageConfig } from "./Storage";
 
 export function useStorageBackedState<T extends object, A>(
-    storage: StateStorage,
+    storage: StorageConfig,
+    name: string,
     reducer: (old: T, action: A) => T,
     initialState: T,
     generateLoadAction: (state: T) => A
@@ -23,14 +15,21 @@ export function useStorageBackedState<T extends object, A>(
     const shouldLoad = useRef(true);
     const [shouldSave, setShouldSave] = useState(false);
 
+    const [info, setInfo] = useState("");
+
     useEffect(() => {
         async function load() {
+            console.log("load");
             try {
-                const loaded = await storage.load();
+                const loaded = await storage.load(name);
+                console.log("loaded", loaded);
                 if (loaded.data) {
-                    dispatchWithoutSave(generateLoadAction(loaded.data as T));
+                    const json = new TextDecoder().decode(loaded.data);
+                    console.log("json", json);
+                    const state = JSON.parse(json) as T;
+                    dispatchWithoutSave(generateLoadAction(state));
                 }
-                console.log("Loaded version", loaded.version);
+                setInfo(`Loaded version ${loaded.version}`);
                 setVersion(loaded.version);
             } catch (e) {
                 console.error(e);
@@ -40,6 +39,8 @@ export function useStorageBackedState<T extends object, A>(
         if (shouldLoad.current) {
             shouldLoad.current = false;
             load();
+        } else {
+            console.log("shouldLoad is false");
         }
     }, []);
 
@@ -51,31 +52,33 @@ export function useStorageBackedState<T extends object, A>(
             window.clearTimeout(saveTimer.current);
         }
 
+        setInfo("Saving soon");
+
         saveTimer.current = window.setTimeout(() => setShouldSave(true), 2000);
     }
 
     useEffect(() => {
         async function reconcile() {
             try {
-                await storage.save({ data: state, version });
+                setInfo("Saving...");
+                const data = new TextEncoder().encode(JSON.stringify(state));
+                setVersion(await storage.save(name, { data, version }));
                 queuedActions.current = [];
+                setInfo("Saved successfully");
                 return;
             } catch (e) {
                 const er = e as Error;
-                console.log(
-                    `reconcile after failing based on version`,
-                    version,
-                    er.message
-                );
+                setInfo("Reconciling");
 
-                const loaded = await storage.load();
-                dispatchWithoutSave(generateLoadAction(loaded.data as T));
+                const loaded = await storage.load(name);
+                const state = loaded.data
+                    ? (JSON.parse(new TextDecoder().decode(loaded.data)) as T)
+                    : initialState;
+                dispatchWithoutSave(generateLoadAction(state));
 
-                console.log("Loaded version", loaded.version);
                 setVersion(loaded.version);
 
                 for (const action of queuedActions.current) {
-                    console.log("Reapplying", action);
                     dispatchWithoutSave(action);
                 }
 
@@ -98,5 +101,7 @@ export function useStorageBackedState<T extends object, A>(
 
             saveSoon();
         },
+
+        info,
     ] as const;
 }

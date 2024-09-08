@@ -67,7 +67,7 @@ export interface StackedBarProps {
     highlight?: { bar: string; segment?: string };
     format?(value: number): string;
     colour?(segment: string): string;
-    onClick?(bar: string, segment: string): void;
+    onClick?(bar: string, segment?: string): void;
 }
 
 export function StackedBar({

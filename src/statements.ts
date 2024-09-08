@@ -213,7 +213,7 @@ export function getPaymentsWithCategories(
 ) {
     return payments.map((payment, index) => {
         const pattern = getPattern(payment.description);
-        const category = patternsToCategories[pattern];
+        const category = patternsToCategories[pattern] || "uncategorised";
         return { ...payment, category, index };
     });
 }

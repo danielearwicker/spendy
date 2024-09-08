@@ -21,14 +21,8 @@ async function importKey(key: string) {
     );
 }
 
-export async function encrypt(data: string, key: string) {
-    const bytes = new TextEncoder().encode(data);
-
-    console.log("encrypt: bytes", bytes.length);
-
+export async function encrypt(bytes: ArrayBuffer, key: string) {
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
-
-    console.log("encrypt: iv", iv);
 
     const encrypted = await window.crypto.subtle.encrypt(
         { ...algorithm, iv },
@@ -36,21 +30,20 @@ export async function encrypt(data: string, key: string) {
         bytes
     );
 
-    console.log("encrypt: encrypted", encrypted.byteLength);
-
     const combined = new Uint8Array(iv.length + encrypted.byteLength);
     combined.set(iv, 0);
     combined.set(new Uint8Array(encrypted), iv.length);
 
-    console.log(combined.length);
     return combined;
+}
+
+export function encryptText(data: string, key: string) {
+    return encrypt(new TextEncoder().encode(data), key);
 }
 
 export async function decrypt(data: ArrayBufferLike, key: string) {
     const iv = new DataView(data, 0, 12);
     const encrypted = new DataView(data, 12);
-
-    console.log("decrypt: iv, encrypted", iv, encrypted);
 
     const plain = await window.crypto.subtle.decrypt(
         { ...algorithm, iv },
@@ -58,10 +51,9 @@ export async function decrypt(data: ArrayBufferLike, key: string) {
         encrypted
     );
 
-    console.log("decrypt: plain", plain.byteLength);
+    return plain;
+}
 
-    const text = new TextDecoder().decode(plain);
-    console.log("decrypt: text", text);
-
-    return text;
+export async function decryptText(data: ArrayBufferLike, key: string) {
+    return new TextDecoder().decode(await decrypt(data, key));
 }

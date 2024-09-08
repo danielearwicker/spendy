@@ -5,8 +5,8 @@ import {
     removeAdjacentDuplicates,
     sort,
 } from "./statements";
-import { useStorage } from "./Storage";
-import { useStorageBackedState } from "./hooks/useStorageBackedState";
+import { useStorage } from "./encryptedStorage/Storage";
+import { useStorageBackedState } from "./encryptedStorage/useStorageBackedState";
 
 export type SpendyAction =
     | {
@@ -204,6 +204,7 @@ export function useSpendyStorage() {
 
     return useStorageBackedState(
         storage,
+        "spendy",
         spendyReducer,
         initialState,
         generateLoadAction

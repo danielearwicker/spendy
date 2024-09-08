@@ -6,7 +6,6 @@ import {
     formatBankAmount,
     getPattern,
     getPaymentsWithCategories,
-    Payment,
     quarterFromDate,
     sort,
 } from "./statements";
@@ -18,25 +17,8 @@ import { getCategoryColour } from "./colours";
 import { Select } from "./inputComponents/Select";
 import { YearMonth } from "./YearMonth";
 import { useSearchParams } from "react-router-dom";
-
-interface PaymentLineProps {
-    payment: Payment & {
-        category: string;
-    };
-}
-
-function PaymentLine({ payment }: PaymentLineProps) {
-    return (
-        <>
-            <tr>
-                <td>{payment.date}</td>
-                <td>{payment.category ?? "[category]"}</td>
-                <td>{payment.description}</td>
-                <td>{formatBankAmount(payment.amount)}</td>
-            </tr>
-        </>
-    );
-}
+import { AssignCategory } from "./AssignCategory";
+import { chain as _ } from "underscore";
 
 export const paymentTypes = [
     "debits",
@@ -58,7 +40,7 @@ export type DateRange = typeof dateRanges[number];
 
 export interface ExplorerProps {
     state: SpendyState;
-    dispatch: (action: SpendyAction) => void;
+    dispatch(action: SpendyAction): void;
 }
 
 export function Explorer({ state, dispatch }: ExplorerProps) {
@@ -242,18 +224,6 @@ export function Explorer({ state, dispatch }: ExplorerProps) {
         return bars;
     }, [sorted]);
 
-    function setCategory(category: string) {
-        for (const p of filtered) {
-            dispatch({
-                type: "CATEGORY_SET",
-                pattern: getPattern(p.description),
-                category,
-            });
-        }
-
-        setSearch("");
-    }
-
     function rename(renamed: string) {
         dispatch({
             type: "CATEGORY_RENAME",
@@ -281,6 +251,21 @@ export function Explorer({ state, dispatch }: ExplorerProps) {
                       getChildCategory(path, p.category) ===
                           tableFilter.segment)
           );
+
+    const [changingCategory, setChangingCategory] = useState(false);
+
+    function setCategory(category: string) {
+        for (const p of filtered) {
+            dispatch({
+                type: "CATEGORY_SET",
+                pattern: getPattern(p.description),
+                category,
+            });
+        }
+
+        setChangingCategory(false);
+        setSearch("");
+    }
 
     return (
         <div className="explorer">
@@ -340,6 +325,12 @@ export function Explorer({ state, dispatch }: ExplorerProps) {
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
+                        <button
+                            onClick={() =>
+                                setChangingCategory(!changingCategory)
+                            }>
+                            {!changingCategory ? "change category" : "cancel"}
+                        </button>
                     </div>
 
                     {type === "net per" || type === "net running" ? (
@@ -366,21 +357,40 @@ export function Explorer({ state, dispatch }: ExplorerProps) {
                     )}
 
                     <div className="table">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <td>Date</td>
-                                    <td>Category</td>
-                                    <td>Description</td>
-                                    <td>Amount</td>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredForTable.map((x, n) => (
-                                    <PaymentLine key={x.index} payment={x} />
-                                ))}
-                            </tbody>
-                        </table>
+                        {changingCategory ? (
+                            <AssignCategory
+                                categories={state.categories}
+                                setCategory={setCategory}
+                            />
+                        ) : (
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <td>Date</td>
+                                        <td>Category</td>
+                                        <td>Description</td>
+                                        <td>Amount</td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredForTable.map((payment, n) => (
+                                        <tr key={n}>
+                                            <td>{payment.date}</td>
+                                            <td>
+                                                {payment.category ??
+                                                    "uncategorised"}
+                                            </td>
+                                            <td>{payment.description}</td>
+                                            <td>
+                                                {formatBankAmount(
+                                                    payment.amount
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
                 </div>
             </div>
